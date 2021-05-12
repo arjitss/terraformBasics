@@ -11,9 +11,9 @@ provider "azurerm" {
   features {}
 }
 
-resource "azurerm_resource_group" "weberver_rg" {
-  name     = "webserver-rg"
-  location = "westus2"
+resource "azurerm_resource_group" "webserver_rg" {
+  name     = var.web_server_rg
+  location = var.web_server_location
 }
 
 // commands used
