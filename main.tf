@@ -30,6 +30,17 @@ resource "azurerm_subnet" "web_server_subnet" {
   address_prefix       = var.web_server_address_prefix
 }
 
+resource "azurerm_network_interface" "web_server_nic" {
+  name                = "${var.web_server_name}-nic"
+  location            = var.web_server_location
+  resource_group_name = azurerm_resource_group.webserver_rg.name
+  ip_configuration {
+    name                          = "${var.web_server_name}-ip"
+    subnet_id                     = azurerm_subnet.web_server_subnet.id
+    private_ip_address_allocation = "dynamic"
+  }
+}
+
 // commands used
 // az login - login to azure so as to connect where to create the resource
 // terraform init - initialise terraform
