@@ -37,3 +37,4 @@ resource "azurerm_subnet" "web_server_subnet" {
 // terraform plan - generates the state, what actually will get deployed
 // terraform apply - to deploy the generated state to azure
 // terraform destroy - to destroy the generated state
+// terraform graph - to create a dependency graph ( Web site : https://dreampuf.github.io/GraphvizOnline/)
