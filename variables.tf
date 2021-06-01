@@ -29,6 +29,6 @@ variable "web_server_name" {
 }
 
 variable "environment" {
-  type = string
+  type        = string
   description = "dev or prod variable"
 }
