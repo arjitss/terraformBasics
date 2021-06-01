@@ -41,6 +41,13 @@ resource "azurerm_network_interface" "web_server_nic" {
   }
 }
 
+resource "azurerm_public_ip" "webserver_public_ip" {
+  name = "${var.resource_prefix}-public-ip"
+  location = var.web_server_location
+  resource_group_name = azurerm_resource_group.webserver_rg.name
+  allocation_method = var.environment == "production" ? "Static" : "Dynamic"
+}
+
 // commands used
 // az login - login to azure so as to connect where to create the resource
 // terraform init - initialise terraform
