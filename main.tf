@@ -51,7 +51,9 @@ resource "azurerm_public_ip" "webserver_public_ip" {
 resource "azurerm_network_security_group" "webserver_nsg" {
   name                = "${var.resource_prefix}-nsg"
   location            = var.web_server_location
-  resource_group_name = var.web_server_rg
+    // By using this instead of (var.web_server_rg) we are creating, 
+  // a soft dependency and waiting for resource group to be created before creating NSG
+  resource_group_name = azurerm_resource_group.webserver_rg.name
 }
 
 resource "azurerm_network_security_rule" "webserver_nsg_rule_rdp" {
@@ -70,7 +72,7 @@ resource "azurerm_network_security_rule" "webserver_nsg_rule_rdp" {
 
 resource "azurerm_network_interface_security_group_association" "webserver_nsg_association" {
   network_security_group_id = azurerm_network_security_group.webserver_nsg.id
-  network_interface_id      = azurerm_network_interface.web_server_nic.id
+  network_interface_id = azurerm_network_interface.web_server_nic.id
 }
 
 // commands used
