@@ -70,7 +70,7 @@ resource "azurerm_network_security_rule" "webserver_nsg_rule_rdp" {
 
 resource "azurerm_network_interface_security_group_association" "webserver_nsg_association" {
   network_security_group_id = azurerm_network_security_group.webserver_nsg.id
-  network_interface_id = azurerm_network_interface.web_server_nic.id
+  network_interface_id      = azurerm_network_interface.web_server_nic.id
 }
 
 // commands used
