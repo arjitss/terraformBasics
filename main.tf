@@ -86,6 +86,9 @@ resource "azurerm_windows_virtual_machine" "webserver_vm" {
   // NIC is associated with public IP.
   network_interface_ids = [azurerm_network_interface.web_server_nic.id]
 
+ // adding the VM to the availability set
+  availability_set_id = azurerm_availability_set.webserver_availability_set.id
+
   admin_username = "webserver"
   admin_password = "Passw0rd12345"
   os_disk {
@@ -98,6 +101,14 @@ resource "azurerm_windows_virtual_machine" "webserver_vm" {
     sku = "2019-Datacenter"
     version = "latest"
   }
+}
+
+resource "azurerm_availability_set" "webserver_availability_set" {
+  name                = "${var.web_server_name}-availability_set"
+  location            = var.web_server_location
+  resource_group_name = azurerm_resource_group.webserver_rg.name
+  managed = true
+  platform_fault_domain_count = 2
 }
 
 // commands used
