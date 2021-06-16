@@ -31,15 +31,16 @@ resource "azurerm_subnet" "web_server_subnet" {
 }
 
 resource "azurerm_network_interface" "web_server_nic" {
-  name                = "${var.web_server_name}-nic"
+  name                = "${var.web_server_name}-${format("%02d", count.index)}-nic"
   location            = var.web_server_location
   resource_group_name = azurerm_resource_group.webserver_rg.name
+  count               = var.web_server_count
   ip_configuration {
     name                          = "${var.web_server_name}-ip"
     subnet_id                     = azurerm_subnet.web_server_subnet.id
     private_ip_address_allocation = "dynamic"
     // Adding public ip to NIC
-    public_ip_address_id = azurerm_public_ip.webserver_public_ip.id
+    public_ip_address_id = count.index == 0 ? azurerm_public_ip.webserver_public_ip.id : null
   }
 }
 
@@ -51,8 +52,8 @@ resource "azurerm_public_ip" "webserver_public_ip" {
 }
 
 resource "azurerm_network_security_group" "webserver_nsg" {
-  name                = "${var.resource_prefix}-nsg"
-  location            = var.web_server_location
+  name     = "${var.resource_prefix}-nsg"
+  location = var.web_server_location
   // By using this instead of (var.web_server_rg) we are creating, 
   // a soft dependency and waiting for resource group to be created before creating NSG
   resource_group_name = azurerm_resource_group.webserver_rg.name
@@ -72,42 +73,43 @@ resource "azurerm_network_security_rule" "webserver_nsg_rule_rdp" {
   network_security_group_name = azurerm_network_security_group.webserver_nsg.name
 }
 
-resource "azurerm_network_interface_security_group_association" "webserver_nsg_association" {
+resource "azurerm_subnet_network_security_group_association" "webserver_sag" {
   network_security_group_id = azurerm_network_security_group.webserver_nsg.id
-  network_interface_id = azurerm_network_interface.web_server_nic.id
+  subnet_id                 = azurerm_subnet.web_server_subnet.id
 }
 
 resource "azurerm_windows_virtual_machine" "webserver_vm" {
-  name = var.web_server_name
-  location = var.web_server_location
+  name                = "${var.web_server_name}-${format("%02d", count.index)}"
+  location            = var.web_server_location
   resource_group_name = azurerm_resource_group.webserver_rg.name
-  size = "Standard_B1s"
+  size                = "Standard_B1s"
+  count               = var.web_server_count
   // VM is associated with NIC (network interface card) and 
   // NIC is associated with public IP.
-  network_interface_ids = [azurerm_network_interface.web_server_nic.id]
+  network_interface_ids = [azurerm_network_interface.web_server_nic[count.index].id]
 
- // adding the VM to the availability set
+  // adding the VM to the availability set
   availability_set_id = azurerm_availability_set.webserver_availability_set.id
 
   admin_username = "webserver"
   admin_password = "Passw0rd12345"
   os_disk {
-    caching = "ReadWrite"
+    caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
   }
   source_image_reference {
     publisher = "MicrosoftWindowsServer"
-    offer = "WindowsServer"
-    sku = "2019-Datacenter"
-    version = "latest"
+    offer     = "WindowsServer"
+    sku       = "2019-Datacenter"
+    version   = "latest"
   }
 }
 
 resource "azurerm_availability_set" "webserver_availability_set" {
-  name                = "${var.web_server_name}-availability_set"
-  location            = var.web_server_location
-  resource_group_name = azurerm_resource_group.webserver_rg.name
-  managed = true
+  name                        = "${var.web_server_name}-availability_set"
+  location                    = var.web_server_location
+  resource_group_name         = azurerm_resource_group.webserver_rg.name
+  managed                     = true
   platform_fault_domain_count = 2
 }
 

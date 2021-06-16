@@ -32,3 +32,8 @@ variable "environment" {
   type        = string
   description = "dev or prod variable"
 }
+
+variable "web_server_count" {
+  type        = number
+  description = "use to dynamically create names for multiple servers"
+}
