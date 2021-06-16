@@ -23,12 +23,22 @@ resource "azurerm_virtual_network" "web_server_vnet" {
   address_space       = [var.web_server_address_space]
 }
 
+# resource "azurerm_subnet" "web_server_subnet" {
+#   name                 = "${var.resource_prefix}-subnet"
+#   resource_group_name  = azurerm_resource_group.webserver_rg.name
+#   virtual_network_name = azurerm_virtual_network.web_server_vnet.name
+#   address_prefix       = var.web_server_address_prefix
+# }
+
+
 resource "azurerm_subnet" "web_server_subnet" {
-  name                 = "${var.resource_prefix}-subnet"
+  for_each = var.web_server_subnets
+  name                 = each.key
   resource_group_name  = azurerm_resource_group.webserver_rg.name
   virtual_network_name = azurerm_virtual_network.web_server_vnet.name
-  address_prefix       = var.web_server_address_prefix
+  address_prefix       = each.value
 }
+
 
 resource "azurerm_network_interface" "web_server_nic" {
   name                = "${var.web_server_name}-${format("%02d", count.index)}-nic"
@@ -37,7 +47,7 @@ resource "azurerm_network_interface" "web_server_nic" {
   count               = var.web_server_count
   ip_configuration {
     name                          = "${var.web_server_name}-ip"
-    subnet_id                     = azurerm_subnet.web_server_subnet.id
+    subnet_id                     = azurerm_subnet.web_server_subnet["web-server"].id
     private_ip_address_allocation = "dynamic"
     // Adding public ip to NIC
     public_ip_address_id = count.index == 0 ? azurerm_public_ip.webserver_public_ip.id : null
@@ -71,11 +81,12 @@ resource "azurerm_network_security_rule" "webserver_nsg_rule_rdp" {
   destination_address_prefix  = "*"
   resource_group_name         = azurerm_resource_group.webserver_rg.name
   network_security_group_name = azurerm_network_security_group.webserver_nsg.name
+  count = var.environment == "development" ? 1: 0 // A binary varibale to create the resource based on condition
 }
 
 resource "azurerm_subnet_network_security_group_association" "webserver_sag" {
   network_security_group_id = azurerm_network_security_group.webserver_nsg.id
-  subnet_id                 = azurerm_subnet.web_server_subnet.id
+  subnet_id                 = azurerm_subnet.web_server_subnet["web-server"].id
 }
 
 resource "azurerm_windows_virtual_machine" "webserver_vm" {
@@ -123,3 +134,9 @@ resource "azurerm_availability_set" "webserver_availability_set" {
 // terraform graph - to create a dependency graph ( Web site : https://dreampuf.github.io/GraphvizOnline/)
 // az vm list -o table
 // az vm list-sizes -l westus2 -o table
+
+// Error Logging to read more on google:
+// --------------------------------------
+// TF_LOG = TRACE, DEBUG, INFO, WARN or ERROR
+// TF_LOG_PATH
+// crash.log

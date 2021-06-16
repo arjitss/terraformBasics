@@ -37,3 +37,8 @@ variable "web_server_count" {
   type        = number
   description = "use to dynamically create names for multiple servers"
 }
+
+variable "web_server_subnets" {
+  type = map
+  description = "To create multiple subnets"
+}
