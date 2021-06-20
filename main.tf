@@ -78,6 +78,8 @@ resource "azurerm_network_security_group" "webserver_nsg" {
   resource_group_name = azurerm_resource_group.webserver_rg.name
 }
 
+
+// NSG rule for RDP
 resource "azurerm_network_security_rule" "webserver_nsg_rule_rdp" {
   name                        = "RDP Inbound"
   priority                    = 100
@@ -91,6 +93,21 @@ resource "azurerm_network_security_rule" "webserver_nsg_rule_rdp" {
   resource_group_name         = azurerm_resource_group.webserver_rg.name
   network_security_group_name = azurerm_network_security_group.webserver_nsg.name
   count                       = var.environment == "development" ? 1 : 0 // A binary varibale to create the resource based on condition
+}
+
+// NSG rule for HTTP (required for Load balancer)
+resource "azurerm_network_security_rule" "webserver_nsg_rule_http" {
+  name                        = "RDP Inbound"
+  priority                    = 110
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "80"
+  source_address_prefix       = "*"
+  destination_address_prefix  = "*"
+  resource_group_name         = azurerm_resource_group.webserver_rg.name
+  network_security_group_name = azurerm_network_security_group.webserver_nsg.name
 }
 
 resource "azurerm_subnet_network_security_group_association" "webserver_sag" {
@@ -165,12 +182,51 @@ resource "azurerm_virtual_machine_scale_set" "web_server" {
       name      = var.web_server_name
       primary   = true
       subnet_id = azurerm_subnet.web_server_subnet["web-server"].id
+      // add a new backend ip pool property to point these VM in load balancer backend pool
+       load_balancer_backend_address_pool_ids = [azurerm_lb_backend_address_pool.web_server_lb_backend_pool.id]
     }
   }
 
 }
 
+// load balancer
+resource "azurerm_lb" "web_server_lb" {
+    name                = "${var.resource_prefix}-lb"
+  location              = var.web_server_location
+  resource_group_name   = azurerm_resource_group.webserver_rg.name
+  // public ip (frontend ip for load balancer)
+  frontend_ip_configuration {
+    name                 = "${var.resource_prefix}-lb-frontend-ip"
+    public_ip_address_id = azurerm_public_ip.webserver_public_ip.id
+  }
+}
 
+// backend address pool
+resource "azurerm_lb_backend_address_pool" "web_server_lb_backend_pool" {
+  name                = "${var.resource_prefix}-lb-backend-pool"
+  resource_group_name   = azurerm_resource_group.webserver_rg.name
+  loadbalancer_id = azurerm_lb.web_server_lb.id
+}
+
+resource "azurerm_lb_probe" "web_server_lb_http_probe" {
+  name                = "${var.resource_prefix}-lb-http-probe"
+  resource_group_name   = azurerm_resource_group.webserver_rg.name
+  loadbalancer_id = azurerm_lb.web_server_lb.id
+  protocol = "tcp"
+  port      = "80"
+}
+
+resource "azurerm_lb_rule" "web_server_lb_http_rule" {
+    name                = "${var.resource_prefix}-lb-http-probe"
+  resource_group_name   = azurerm_resource_group.webserver_rg.name
+  loadbalancer_id = azurerm_lb.web_server_lb.id
+   protocol = "tcp"
+  frontend_port      = "80"
+  backend_port      = "80"
+  frontend_ip_configuration_name                 = "${var.resource_prefix}-lb-frontend-ip"
+  probe_id = azurerm_lb_probe.web_server_lb_http_probe.id
+backend_address_pool_id = azurerm_lb_backend_address_pool.web_server_lb_backend_pool.id
+}
 # Not required as we are trying out Scale set
 # ------------------------------------------- 
 # resource "azurerm_availability_set" "webserver_availability_set" {
