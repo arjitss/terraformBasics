@@ -32,27 +32,28 @@ resource "azurerm_virtual_network" "web_server_vnet" {
 
 
 resource "azurerm_subnet" "web_server_subnet" {
-  for_each = var.web_server_subnets
+  for_each             = var.web_server_subnets
   name                 = each.key
   resource_group_name  = azurerm_resource_group.webserver_rg.name
   virtual_network_name = azurerm_virtual_network.web_server_vnet.name
   address_prefix       = each.value
 }
 
-
-resource "azurerm_network_interface" "web_server_nic" {
-  name                = "${var.web_server_name}-${format("%02d", count.index)}-nic"
-  location            = var.web_server_location
-  resource_group_name = azurerm_resource_group.webserver_rg.name
-  count               = var.web_server_count
-  ip_configuration {
-    name                          = "${var.web_server_name}-ip"
-    subnet_id                     = azurerm_subnet.web_server_subnet["web-server"].id
-    private_ip_address_allocation = "dynamic"
-    // Adding public ip to NIC
-    public_ip_address_id = count.index == 0 ? azurerm_public_ip.webserver_public_ip.id : null
-  }
-}
+# This does move to Azure Scale Set, once scale set is created
+#--------------------------------------------------------------
+# resource "azurerm_network_interface" "web_server_nic" {
+#   name                = "${var.web_server_name}-${format("%02d", count.index)}-nic"
+#   location            = var.web_server_location
+#   resource_group_name = azurerm_resource_group.webserver_rg.name
+#   count               = var.web_server_count
+#   ip_configuration {
+#     name                          = "${var.web_server_name}-ip"
+#     subnet_id                     = azurerm_subnet.web_server_subnet["web-server"].id
+#     private_ip_address_allocation = "dynamic"
+#     // Adding public ip to NIC
+#     public_ip_address_id = count.index == 0 ? azurerm_public_ip.webserver_public_ip.id : null
+#   }
+# }
 
 resource "azurerm_public_ip" "webserver_public_ip" {
   name                = "${var.resource_prefix}-public-ip"
@@ -81,7 +82,7 @@ resource "azurerm_network_security_rule" "webserver_nsg_rule_rdp" {
   destination_address_prefix  = "*"
   resource_group_name         = azurerm_resource_group.webserver_rg.name
   network_security_group_name = azurerm_network_security_group.webserver_nsg.name
-  count = var.environment == "development" ? 1: 0 // A binary varibale to create the resource based on condition
+  count                       = var.environment == "development" ? 1 : 0 // A binary varibale to create the resource based on condition
 }
 
 resource "azurerm_subnet_network_security_group_association" "webserver_sag" {
@@ -89,40 +90,88 @@ resource "azurerm_subnet_network_security_group_association" "webserver_sag" {
   subnet_id                 = azurerm_subnet.web_server_subnet["web-server"].id
 }
 
-resource "azurerm_windows_virtual_machine" "webserver_vm" {
-  name                = "${var.web_server_name}-${format("%02d", count.index)}"
+# Using scale set configs.
+# ------------------------
+# resource "azurerm_windows_virtual_machine" "webserver_vm" {
+#   name                = "${var.web_server_name}-${format("%02d", count.index)}"
+#   location            = var.web_server_location
+#   resource_group_name = azurerm_resource_group.webserver_rg.name
+#   size                = "Standard_B1s"
+#   count               = var.web_server_count
+#   // VM is associated with NIC (network interface card) and 
+#   // NIC is associated with public IP.
+#   network_interface_ids = [azurerm_network_interface.web_server_nic[count.index].id]
+
+#   // adding the VM to the availability set
+#   availability_set_id = azurerm_availability_set.webserver_availability_set.id
+
+#   admin_username = "webserver"
+#   admin_password = "Passw0rd12345"
+#   os_disk {
+#     caching              = "ReadWrite"
+#     storage_account_type = "Standard_LRS"
+#   }
+#   source_image_reference {
+#     publisher = "MicrosoftWindowsServer"
+#     offer     = "WindowsServer"
+#     sku       = "2019-Datacenter"
+#     version   = "latest"
+#   }
+# }
+
+resource "azurerm_virtual_machine_scale_set" "web_server" {
+  name                = "${var.resource_prefix}-scale-set"
   location            = var.web_server_location
   resource_group_name = azurerm_resource_group.webserver_rg.name
-  size                = "Standard_B1s"
-  count               = var.web_server_count
-  // VM is associated with NIC (network interface card) and 
-  // NIC is associated with public IP.
-  network_interface_ids = [azurerm_network_interface.web_server_nic[count.index].id]
-
-  // adding the VM to the availability set
-  availability_set_id = azurerm_availability_set.webserver_availability_set.id
-
-  admin_username = "webserver"
-  admin_password = "Passw0rd12345"
-  os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
+  upgrade_policy_mode = "manual"
+  sku {
+    name     = "Standard_B1s"
+    tier     = "Standard"
+    capacity = var.web_server_count
   }
-  source_image_reference {
+  storage_profile_image_reference {
     publisher = "MicrosoftWindowsServer"
     offer     = "WindowsServer"
     sku       = "2019-Datacenter"
     version   = "latest"
   }
+  storage_profile_os_disk {
+    name              = ""
+    caching           = "ReadWrite"
+    create_option     = "FromImage"
+    managed_disk_type = "Standard_LRS"
+  }
+
+  os_profile {
+    computer_name_prefix = var.web_server_name
+    admin_username       = "webserver"
+    admin_password       = "Passw0rd12345"
+  }
+  os_profile_windows_config {
+    provision_vm_agent = true
+  }
+  network_profile {
+    name    = "web_server_network_profile"
+    primary = true
+    ip_configuration {
+      name      = var.web_server_name
+      primary   = true
+      subnet_id = azurerm_subnet.web_server_subnet["web-server"].id
+    }
+  }
+
 }
 
-resource "azurerm_availability_set" "webserver_availability_set" {
-  name                        = "${var.web_server_name}-availability_set"
-  location                    = var.web_server_location
-  resource_group_name         = azurerm_resource_group.webserver_rg.name
-  managed                     = true
-  platform_fault_domain_count = 2
-}
+
+# Not required as we are trying out Scale set
+# ------------------------------------------- 
+# resource "azurerm_availability_set" "webserver_availability_set" {
+#   name                        = "${var.web_server_name}-availability_set"
+#   location                    = var.web_server_location
+#   resource_group_name         = azurerm_resource_group.webserver_rg.name
+#   managed                     = true
+#   platform_fault_domain_count = 2
+# }
 
 // commands used
 // az login - login to azure so as to connect where to create the resource

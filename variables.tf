@@ -39,6 +39,6 @@ variable "web_server_count" {
 }
 
 variable "web_server_subnets" {
-  type = map
+  type        = map(any)
   description = "To create multiple subnets"
 }
