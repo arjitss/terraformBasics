@@ -10,3 +10,4 @@ web_server_subnets = {
   web-server         = "1.0.1.0/24"
   AzureBastianSubnet = "1.0.2.0/24"
 }
+terraform_my_resource_script_version = "1.0.0"

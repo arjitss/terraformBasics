@@ -42,3 +42,8 @@ variable "web_server_subnets" {
   type        = map(any)
   description = "To create multiple subnets"
 }
+
+variable "terraform_my_resource_script_version" {
+  type = string
+  description = "terraform script version"
+}

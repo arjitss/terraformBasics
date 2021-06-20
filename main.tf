@@ -11,9 +11,17 @@ provider "azurerm" {
   features {}
 }
 
+locals {
+  build_enviornment =  var.environment == "production" ? "production" : "development"
+}
+
 resource "azurerm_resource_group" "webserver_rg" {
   name     = var.web_server_rg
   location = var.web_server_location
+  tags = {
+    environment = local.build_enviornment
+    build_version = var.terraform_my_resource_script_version
+  }
 }
 
 resource "azurerm_virtual_network" "web_server_vnet" {
