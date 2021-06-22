@@ -37,7 +37,7 @@ resource "azurerm_storage_account" "storage_account" {
   name                     = "ltfbootdiagnostics01"
   location                 = var.web_server_location
   resource_group_name      = azurerm_resource_group.webserver_rg.name
-  access_tier              = "Standard"
+  account_tier             = "Standard"
   account_replication_type = "LRS"
 }
 
@@ -198,6 +198,13 @@ resource "azurerm_virtual_machine_scale_set" "web_server" {
     }
   }
 
+  boot_diagnostics {
+
+    enabled     = true
+    storage_uri = azurerm_storage_account.storage_account.primary_blob_endpoint
+
+  }
+
   // Azure VM extentions
 
   extension {
@@ -278,6 +285,7 @@ resource "azurerm_lb_rule" "web_server_lb_http_rule" {
 //                    which previous was not created by Terraform
 // az vm list -o table
 // az vm list-sizes -l westus2 -o table
+// az vmss update-instances --instance-ids "*" --name web-server-scale-set --resource-group web-rg
 
 //----
 // For adding an existing resource or a resource which is not created by our Terraform script to our State file
