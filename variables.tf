@@ -44,6 +44,6 @@ variable "web_server_subnets" {
 }
 
 variable "terraform_my_resource_script_version" {
-  type = string
+  type        = string
   description = "terraform script version"
 }

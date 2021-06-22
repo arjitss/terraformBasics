@@ -12,14 +12,14 @@ provider "azurerm" {
 }
 
 locals {
-  build_enviornment =  var.environment == "production" ? "production" : "development"
+  build_enviornment = var.environment == "production" ? "production" : "development"
 }
 
 resource "azurerm_resource_group" "webserver_rg" {
   name     = var.web_server_rg
   location = var.web_server_location
   tags = {
-    environment = local.build_enviornment
+    environment   = local.build_enviornment
     build_version = var.terraform_my_resource_script_version
   }
 }
@@ -31,6 +31,15 @@ resource "azurerm_virtual_network" "web_server_vnet" {
   address_space       = [var.web_server_address_space]
 }
 
+
+resource "azurerm_storage_account" "storage_account" {
+
+  name                     = "ltfbootdiagnostics01"
+  location                 = var.web_server_location
+  resource_group_name      = azurerm_resource_group.webserver_rg.name
+  access_tier              = "Standard"
+  account_replication_type = "LRS"
+}
 
 # resource "azurerm_subnet" "web_server_subnet" {
 #   name                 = "${var.resource_prefix}-subnet"
@@ -174,7 +183,7 @@ resource "azurerm_virtual_machine_scale_set" "web_server" {
     admin_password       = data.azurerm_key_vault_secret.az_vm_password.value
   }
   os_profile_windows_config {
-    provision_vm_agent = true
+    provision_vm_agent        = true
     enable_automatic_upgrades = true
   }
   network_profile {
@@ -185,33 +194,33 @@ resource "azurerm_virtual_machine_scale_set" "web_server" {
       primary   = true
       subnet_id = azurerm_subnet.web_server_subnet["web-server"].id
       // add a new backend ip pool property to point these VM in load balancer backend pool
-       load_balancer_backend_address_pool_ids = [azurerm_lb_backend_address_pool.web_server_lb_backend_pool.id]
+      load_balancer_backend_address_pool_ids = [azurerm_lb_backend_address_pool.web_server_lb_backend_pool.id]
     }
   }
 
-// Azure VM extentions
+  // Azure VM extentions
 
-extension {
-  name = "${var.resource_prefix}-extentions"
-  publisher = "Microsoft.Compute"
-  type = "CustomScriptExtension"
-  type_handler_version = "1.10"
+  extension {
+    name                 = "${var.resource_prefix}-extentions"
+    publisher            = "Microsoft.Compute"
+    type                 = "CustomScriptExtension"
+    type_handler_version = "1.10"
 
-  settings = <<SETTINGS
+    settings = <<SETTINGS
 {
   "fileUris" : ["https://raw.githubusercontent.com/eltimmo/learning/master/azureInstallWebServer.ps1"],
   "commandToExecute" : "start powershell -ExecutionPolicy Unrestricted -File azureInstallWebServer.ps1"
 }
   SETTINGS
-}
+  }
 
 }
 
 // load balancer
 resource "azurerm_lb" "web_server_lb" {
-    name                = "${var.resource_prefix}-lb"
-  location              = var.web_server_location
-  resource_group_name   = azurerm_resource_group.webserver_rg.name
+  name                = "${var.resource_prefix}-lb"
+  location            = var.web_server_location
+  resource_group_name = azurerm_resource_group.webserver_rg.name
   // public ip (frontend ip for load balancer)
   frontend_ip_configuration {
     name                 = "${var.resource_prefix}-lb-frontend-ip"
@@ -222,28 +231,28 @@ resource "azurerm_lb" "web_server_lb" {
 // backend address pool
 resource "azurerm_lb_backend_address_pool" "web_server_lb_backend_pool" {
   name                = "${var.resource_prefix}-lb-backend-pool"
-  resource_group_name   = azurerm_resource_group.webserver_rg.name
-  loadbalancer_id = azurerm_lb.web_server_lb.id
+  resource_group_name = azurerm_resource_group.webserver_rg.name
+  loadbalancer_id     = azurerm_lb.web_server_lb.id
 }
 
 resource "azurerm_lb_probe" "web_server_lb_http_probe" {
   name                = "${var.resource_prefix}-lb-http-probe"
-  resource_group_name   = azurerm_resource_group.webserver_rg.name
-  loadbalancer_id = azurerm_lb.web_server_lb.id
-  protocol = "tcp"
-  port      = "80"
+  resource_group_name = azurerm_resource_group.webserver_rg.name
+  loadbalancer_id     = azurerm_lb.web_server_lb.id
+  protocol            = "tcp"
+  port                = "80"
 }
 
 resource "azurerm_lb_rule" "web_server_lb_http_rule" {
-    name                = "${var.resource_prefix}-lb-http-probe"
-  resource_group_name   = azurerm_resource_group.webserver_rg.name
-  loadbalancer_id = azurerm_lb.web_server_lb.id
-   protocol = "tcp"
-  frontend_port      = "80"
-  backend_port      = "80"
-  frontend_ip_configuration_name                 = "${var.resource_prefix}-lb-frontend-ip"
-  probe_id = azurerm_lb_probe.web_server_lb_http_probe.id
-backend_address_pool_id = azurerm_lb_backend_address_pool.web_server_lb_backend_pool.id
+  name                           = "${var.resource_prefix}-lb-http-probe"
+  resource_group_name            = azurerm_resource_group.webserver_rg.name
+  loadbalancer_id                = azurerm_lb.web_server_lb.id
+  protocol                       = "tcp"
+  frontend_port                  = "80"
+  backend_port                   = "80"
+  frontend_ip_configuration_name = "${var.resource_prefix}-lb-frontend-ip"
+  probe_id                       = azurerm_lb_probe.web_server_lb_http_probe.id
+  backend_address_pool_id        = azurerm_lb_backend_address_pool.web_server_lb_backend_pool.id
 }
 
 
@@ -265,8 +274,21 @@ backend_address_pool_id = azurerm_lb_backend_address_pool.web_server_lb_backend_
 // terraform apply - to deploy the generated state to azure
 // terraform destroy - to destroy the generated state
 // terraform graph - to create a dependency graph ( Web site : https://dreampuf.github.io/GraphvizOnline/)
+// terraform import - to import a resource in Terraform state to manage it via Terraform, 
+//                    which previous was not created by Terraform
 // az vm list -o table
 // az vm list-sizes -l westus2 -o table
+
+//----
+// For adding an existing resource or a resource which is not created by our Terraform script to our State file
+// We need to go the resource (lets say its a storage account) and the we need to 
+// get the resource id (`Storage account resource ID` in this case) and then exute 
+// command `terraform import` providing resource type and its name and then its resource id.
+// example : terraform import azurerm_storage_account.storage_account /subscriptions/3f1c0905-3283-4f97-8bdb-edc61ac96358/resourceGroups/web-rg/providers/Microsoft.Storage/storageAccounts/ltfbootdiagnostics01
+// example explain: terraform import  - P1: type of resource 
+//                                    - P2: Name provided in terraform file 
+//                                    - P3: Resource Id
+//----
 
 // Error Logging to read more on google:
 // --------------------------------------
