@@ -31,6 +31,7 @@ resource "azurerm_virtual_network" "web_server_vnet" {
   address_space       = [var.web_server_address_space]
 }
 
+
 # resource "azurerm_subnet" "web_server_subnet" {
 #   name                 = "${var.resource_prefix}-subnet"
 #   resource_group_name  = azurerm_resource_group.webserver_rg.name
@@ -170,10 +171,11 @@ resource "azurerm_virtual_machine_scale_set" "web_server" {
   os_profile {
     computer_name_prefix = var.web_server_name
     admin_username       = "webserver"
-    admin_password       = "Passw0rd12345"
+    admin_password       = data.azurerm_key_vault_secret.az_vm_password.value
   }
   os_profile_windows_config {
     provision_vm_agent = true
+    enable_automatic_upgrades = true
   }
   network_profile {
     name    = "web_server_network_profile"
