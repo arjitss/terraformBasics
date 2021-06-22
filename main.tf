@@ -97,7 +97,7 @@ resource "azurerm_network_security_rule" "webserver_nsg_rule_rdp" {
 
 // NSG rule for HTTP (required for Load balancer)
 resource "azurerm_network_security_rule" "webserver_nsg_rule_http" {
-  name                        = "RDP Inbound"
+  name                        = "HTTP Inbound"
   priority                    = 110
   direction                   = "Inbound"
   access                      = "Allow"
@@ -187,6 +187,22 @@ resource "azurerm_virtual_machine_scale_set" "web_server" {
     }
   }
 
+// Azure VM extentions
+
+extension {
+  name = "${var.resource_prefix}-extentions"
+  publisher = "Microsoft.Compute"
+  type = "CustomScriptExtension"
+  type_handler_version = "1.10"
+
+  settings = <<SETTINGS
+{
+  "fileUris" : ["https://raw.githubusercontent.com/eltimmo/learning/master/azureInstallWebServer.ps1"],
+  "commandToExecute" : "start powershell -ExecutionPolicy Unrestricted -File azureInstallWebServer.ps1"
+}
+  SETTINGS
+}
+
 }
 
 // load balancer
@@ -227,6 +243,8 @@ resource "azurerm_lb_rule" "web_server_lb_http_rule" {
   probe_id = azurerm_lb_probe.web_server_lb_http_probe.id
 backend_address_pool_id = azurerm_lb_backend_address_pool.web_server_lb_backend_pool.id
 }
+
+
 # Not required as we are trying out Scale set
 # ------------------------------------------- 
 # resource "azurerm_availability_set" "webserver_availability_set" {
