@@ -1,3 +1,7 @@
+variable "web_server_location" {
+  type        = string
+  description = "web server location"
+}
 
 variable "web_server_rg" {
   type        = string
@@ -9,6 +13,10 @@ variable "resource_prefix" {
   description = "resource prefix"
 }
 
+variable "web_server_address_space" {
+  type        = string
+  description = "web_server_address_space"
+}
 
 variable "web_server_name" {
   type        = string
@@ -25,8 +33,17 @@ variable "web_server_count" {
   description = "use to dynamically create names for multiple servers"
 }
 
+variable "web_server_subnets" {
+  type        = map(any)
+  description = "To create multiple subnets"
+}
 
 variable "terraform_my_resource_script_version" {
   type        = string
   description = "terraform script version"
+}
+
+variable "admin_password" {
+  type = string
+  description = "(optional) describe your variable"
 }
