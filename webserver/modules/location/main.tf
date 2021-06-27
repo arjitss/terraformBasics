@@ -50,7 +50,7 @@ resource "azurerm_subnet" "web_server_subnet" {
   name                 = each.key
   resource_group_name  = azurerm_resource_group.webserver_rg.name
   virtual_network_name = azurerm_virtual_network.web_server_vnet.name
-  address_prefix       = each.value
+  address_prefixes     = [each.value]
 }
 
 # This does move to Azure Scale Set, once scale set is created

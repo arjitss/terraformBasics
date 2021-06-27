@@ -1,8 +1,6 @@
-// we can name this file anything,
-// preferred is terraform.tf or backend.tf
-
-terraform {
-  backend "azurerm" {
+data "terraform_remote_state" "webserver_state" {
+  backend = "azurerm"
+  config = {
     resource_group_name  = "remote-state"
     storage_account_name = "remotestatestg"
     container_name       = "tfstate"
